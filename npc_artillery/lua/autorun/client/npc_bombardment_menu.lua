@@ -6,16 +6,116 @@
 --
 --  The trail and particle logic lives in npc_bombardment.lua
 --  (the shared file).  This file is ONLY the spawnmenu panel.
+--
+--  Visual pass: black bg, colored category headers, adaptive text
 -- ============================================================
 
 if SERVER then return end
 
 local ADDON_CATEGORY = "Bombin Addons"
 
+-- ----------------------------------------
+-- Color palette & helpers
+-- ----------------------------------------
+local col_bg_panel      = Color(0, 0, 0, 255)       -- pure black background
+local col_section_title = Color(210, 210, 210, 255)
+local col_label         = Color(200, 200, 200, 255)
+local col_accent        = Color(0, 180, 255, 255)
+local col_text_dark     = Color(0, 0, 0, 255)       -- black text (for light bg)
+local col_text_light    = Color(255, 255, 255, 255) -- white text (for dark bg)
+
+-- Category colors (section headers)
+local SECTION_COLORS = {
+    ["Probability & Timing"]              = Color(255, 160, 80,  120),  -- orange
+    ["Engagement Range"]                  = Color(80,  160, 220, 120),  -- steel blue
+    ["Strike Types"]                      = Color(220, 80,  80,  120),  -- red
+    ["Available Strikes (all equal weight)"] = Color(90, 180, 120, 120), -- toxic green
+}
+
+-- ----------------------------------------
+-- Helper: colored section header panel
+-- ----------------------------------------
+local function AddColoredHeader(panel, text, height)
+    local bgColor = SECTION_COLORS[text]
+    height = height or 30
+
+    if not bgColor then
+        -- Fallback: plain bold label
+        local lbl = vgui.Create("DLabel", panel)
+        lbl:SetText(text)
+        lbl:SetFont("DermaDefaultBold")
+        lbl:SetTextColor(col_label)
+        lbl:SetTall(height)
+        lbl:Dock(TOP)
+        lbl:DockMargin(0, 8, 0, 4)
+        panel:AddItem(lbl)
+        return
+    end
+
+    local cat = vgui.Create("DPanel", panel)
+    cat:SetTall(height)
+    cat:Dock(TOP)
+    cat:DockMargin(0, 8, 0, 4)
+    cat.Paint = function(self, w, h)
+        draw.RoundedBox(4, 0, 0, w, h, bgColor)
+        surface.SetDrawColor(0, 0, 0, 35)
+        surface.DrawOutlinedRect(0, 0, w, h)
+
+        -- Adaptive text: black on light bg, white on dark bg
+        local textColor = col_text_dark
+        if (bgColor.r + bgColor.g + bgColor.b) < 200 then
+            textColor = col_text_light
+        end
+
+        draw.SimpleText(
+            text,
+            "DermaDefaultBold",
+            8, h / 2,
+            textColor,
+            TEXT_ALIGN_LEFT,
+            TEXT_ALIGN_CENTER
+        )
+    end
+    panel:AddItem(cat)
+end
+
+-- ----------------------------------------
+-- Derma skin tweaks: pure black panels
+-- ----------------------------------------
+hook.Add("PreRenderVGUI", "NPCBombardment_SkinTweak", function()
+    local skin = derma.GetDefaultSkin()
+    if not skin.NPCBombardmentSkinned then
+        skin.NPCBombardmentSkinned = true
+
+        local oldPaintCPanel = skin.PaintCategoryPanel
+        skin.PaintCategoryPanel = function(self, w, h)
+            draw.RoundedBox(4, 0, 0, w, h, col_bg_panel)
+            if oldPaintCPanel then
+                surface.SetDrawColor(255, 255, 255, 20)
+                surface.DrawOutlinedRect(0, 0, w, h)
+            end
+        end
+
+        local oldPaintLabel = skin.PaintLabel
+        skin.PaintLabel = function(self, w, h)
+            self:SetTextColor(col_label)
+            if oldPaintLabel then
+                oldPaintLabel(self, w, h)
+            end
+        end
+    end
+end)
+
+-- ----------------------------------------
+-- Spawnmenu category
+-- ----------------------------------------
 hook.Add("AddToolMenuCategories", "NPCBombardment_AddCategory", function()
     spawnmenu.AddToolMenuCategory(ADDON_CATEGORY)
 end)
 
+-- ----------------------------------------
+-- Main tool menu
+-- ----------------------------------------
 hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
     spawnmenu.AddToolMenuOption(
         "Options",
@@ -27,8 +127,27 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
 
             panel:ClearControls()
 
-            panel:AddControl("Header", { Description = "NPC Bombardment Settings", Height = "40" })
+            -- Header banner
+            local header = vgui.Create("DPanel", panel)
+            header:SetTall(40)
+            header:Dock(TOP)
+            header:DockMargin(0, 0, 0, 8)
+            header.Paint = function(self, w, h)
+                draw.RoundedBox(4, 0, 0, w, h, col_bg_panel)
+                surface.SetDrawColor(col_accent)
+                surface.DrawRect(0, h - 2, w, 2)
+                draw.SimpleText(
+                    "NPC Bombardment Settings",
+                    "DermaLarge",
+                    8, h / 2,
+                    col_section_title,
+                    TEXT_ALIGN_LEFT,
+                    TEXT_ALIGN_CENTER
+                )
+            end
+            panel:AddItem(header)
 
+            -- ---- Master toggles ----
             panel:CheckBox("Enable NPC Bombardment Calls", "npc_bombardment_enabled")
             panel:ControlHelp("  Master on/off switch for the entire addon.")
 
@@ -38,7 +157,7 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
             panel:AddControl("Label", { Text = "" })
 
             -- ---- Probability & Timing ----
-            panel:AddControl("Header", { Description = "Probability & Timing", Height = "30" })
+            AddColoredHeader(panel, "Probability & Timing", 30)
 
             panel:NumSlider("Strike Chance", "npc_bombardment_chance", 0, 1, 2)
             panel:ControlHelp("  Probability (0.00 - 1.00) each check.  Default: 0.12")
@@ -52,7 +171,7 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
             panel:AddControl("Label", { Text = "" })
 
             -- ---- Engagement Range ----
-            panel:AddControl("Header", { Description = "Engagement Range", Height = "30" })
+            AddColoredHeader(panel, "Engagement Range", 30)
 
             panel:NumSlider("Max Distance", "npc_bombardment_max_dist", 500, 8000, 0)
             panel:ControlHelp("  Max range in units.  Default: 3000")
@@ -63,7 +182,7 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
             panel:AddControl("Label", { Text = "" })
 
             -- ---- Strike Types ----
-            panel:AddControl("Header", { Description = "Strike Types", Height = "30" })
+            AddColoredHeader(panel, "Strike Types", 30)
 
             panel:CheckBox("Allow Aircraft Strikes", "npc_bombardment_allow_air")
             panel:ControlHelp("  A-10, AH-6, OH-58, P-47D, Typhoon, F-4E.\n  Auto-suppressed if skybox is sealed above target.")
@@ -74,7 +193,7 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
             panel:AddControl("Label", { Text = "" })
 
             -- ---- Strike reference ----
-            panel:AddControl("Header", { Description = "Available Strikes (all equal weight)", Height = "30" })
+            AddColoredHeader(panel, "Available Strikes (all equal weight)", 30)
 
             panel:ControlHelp(
                 "  Ground (always available):\n" ..
