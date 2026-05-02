@@ -12,7 +12,8 @@
 
 if SERVER then return end
 
-local ADDON_CATEGORY = "Bombin Addons"
+local ADDON_TAB      = "Bombin Support"
+local ADDON_CATEGORY = "NPC Bombardment"
 
 -- ----------------------------------------
 -- Color palette & helpers
@@ -26,10 +27,10 @@ local col_text_light    = Color(255, 255, 255, 255) -- white text (for dark bg)
 
 -- Category colors (section headers)
 local SECTION_COLORS = {
-    ["Probability & Timing"]              = Color(255, 160, 80,  120),  -- orange
-    ["Engagement Range"]                  = Color(80,  160, 220, 120),  -- steel blue
-    ["Strike Types"]                      = Color(220, 80,  80,  120),  -- red
-    ["Available Strikes (all equal weight)"] = Color(90, 180, 120, 120), -- toxic green
+    ["Probability & Timing"]                 = Color(255, 160, 80,  120), -- orange
+    ["Engagement Range"]                     = Color(80,  160, 220, 120), -- steel blue
+    ["Strike Types"]                         = Color(220, 80,  80,  120), -- red
+    ["Available Strikes (all equal weight)"] = Color(90,  180, 120, 120), -- toxic green
 }
 
 -- ----------------------------------------
@@ -40,7 +41,6 @@ local function AddColoredHeader(panel, text, height)
     height = height or 30
 
     if not bgColor then
-        -- Fallback: plain bold label
         local lbl = vgui.Create("DLabel", panel)
         lbl:SetText(text)
         lbl:SetFont("DermaDefaultBold")
@@ -61,7 +61,6 @@ local function AddColoredHeader(panel, text, height)
         surface.SetDrawColor(0, 0, 0, 35)
         surface.DrawOutlinedRect(0, 0, w, h)
 
-        -- Adaptive text: black on light bg, white on dark bg
         local textColor = col_text_dark
         if (bgColor.r + bgColor.g + bgColor.b) < 200 then
             textColor = col_text_light
@@ -107,10 +106,14 @@ hook.Add("PreRenderVGUI", "NPCBombardment_SkinTweak", function()
 end)
 
 -- ----------------------------------------
--- Spawnmenu category
+-- Register tab + category (correct GMod API)
 -- ----------------------------------------
+hook.Add("AddToolMenuTabs", "NPCBombardment_AddTab", function()
+    spawnmenu.AddToolTab(ADDON_TAB, ADDON_TAB, "icon16/bomb.png")
+end)
+
 hook.Add("AddToolMenuCategories", "NPCBombardment_AddCategory", function()
-    spawnmenu.AddToolMenuCategory(ADDON_CATEGORY)
+    spawnmenu.AddToolCategory(ADDON_TAB, ADDON_CATEGORY, ADDON_CATEGORY)
 end)
 
 -- ----------------------------------------
@@ -118,10 +121,10 @@ end)
 -- ----------------------------------------
 hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
     spawnmenu.AddToolMenuOption(
-        "Options",
+        ADDON_TAB,
         ADDON_CATEGORY,
         "npc_bombardment_settings",
-        "NPC Bombardment",
+        "NPC Bombardment Settings",
         "", "",
         function(panel)
 
@@ -202,13 +205,13 @@ hook.Add("PopulateToolMenu", "NPCBombardment_PopulateMenu", function()
                 "    105mm Smoke Artillery\n" ..
                 "    105mm WP Artillery  (requires Special Strikes)\n\n" ..
                 "  Aircraft (requires open sky + Aircraft Strikes enabled):\n" ..
-                "    A-10 Thunderbolt II — 30mm strafing run\n" ..
-                "    AH-6 Little Bird    — minigun strafing run\n" ..
-                "    OH-58 Kiowa         — minigun + Hydra rocket salvo\n" ..
-                "    P-47D Thunderbolt   — 8x .50 cal strafing run\n" ..
-                "    Typhoon             — RP-3 rocket run\n" ..
-                "    F-4E Napalm         — napalm bomb run  (requires Special)\n" ..
-                "    F-4E CBU Cluster    — 4x cluster munitions in a line\n\n" ..
+                "    A-10 Thunderbolt II -- 30mm strafing run\n" ..
+                "    AH-6 Little Bird    -- minigun strafing run\n" ..
+                "    OH-58 Kiowa         -- minigun + Hydra rocket salvo\n" ..
+                "    P-47D Thunderbolt   -- 8x .50 cal strafing run\n" ..
+                "    Typhoon             -- RP-3 rocket run\n" ..
+                "    F-4E Napalm         -- napalm bomb run  (requires Special)\n" ..
+                "    F-4E CBU Cluster    -- 4x cluster munitions in a line\n\n" ..
                 "  All 13 strikes share equal probability.\n" ..
                 "  Aircraft suppressed automatically on sealed maps.\n" ..
                 "  Requires: Gredwitch Artillery SWEPs base."
